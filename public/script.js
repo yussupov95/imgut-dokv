@@ -104,16 +104,11 @@ function renderAuth() {
     try {
       const endpoint = regMethod === 'email' ? '/api/register/request-code' : '/api/register/request-phone-code';
       const body = regMethod === 'email' ? { email: contact, password } : { phone: contact, password };
-      const resp = await api(endpoint, { method: 'POST', body });
+      await api(endpoint, { method: 'POST', body });
       document.getElementById('authStep1').classList.add('hidden');
       document.getElementById('authStep2').classList.remove('hidden');
       document.getElementById('contactDisplay').textContent = contact;
-      // Показываем код прямо на экране
-      if (resp.debugCode) {
-        showToast(`Ваш код: ${resp.debugCode}`, false);
-      } else {
-        showToast('Код отправлен (проверьте уведомление)');
-      }
+      showToast('Код отправлен на почту. Проверьте папку "Входящие" или "Спам".');
     } catch (e) { showToast(e.message, true); }
   };
 
