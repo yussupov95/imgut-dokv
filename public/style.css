@@ -22,7 +22,6 @@ body {
 
 .hidden { display: none !important; }
 
-/* Хедер */
 .header {
   display: flex;
   justify-content: space-between;
@@ -43,7 +42,6 @@ body {
 .logo span { color: var(--accent); }
 nav { display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap; }
 
-/* Кнопки */
 .btn {
   padding: 0.6rem 1.2rem;
   border-radius: 0.5rem;
@@ -62,7 +60,6 @@ nav { display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap; }
 .btn-danger:hover { background: #dc2626; }
 .btn-sm { padding: 0.3rem 0.6rem; font-size: 0.8rem; }
 
-/* Формы */
 .auth-container {
   max-width: 400px;
   margin: 2rem auto;
@@ -74,7 +71,7 @@ nav { display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap; }
 .auth-container h2 { margin-bottom: 1.5rem; text-align: center; }
 .form-group { margin-bottom: 1rem; }
 .form-group label { display: block; margin-bottom: 0.3rem; color: var(--text-secondary); font-size: 0.9rem; }
-.form-group input, .form-group select {
+.form-group input {
   width: 100%;
   padding: 0.7rem;
   border-radius: 0.5rem;
@@ -83,30 +80,8 @@ nav { display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap; }
   color: var(--text-primary);
   font-size: 1rem;
 }
-.form-group input:focus, .form-group select:focus { outline: none; border-color: var(--accent); }
+.form-group input:focus { outline: none; border-color: var(--accent); }
 
-/* Переключатель способа регистрации */
-.toggle-tabs {
-  display: flex;
-  gap: 0.5rem;
-  margin-bottom: 1.5rem;
-}
-.toggle-tab {
-  flex: 1;
-  text-align: center;
-  padding: 0.5rem;
-  border-radius: 0.5rem;
-  cursor: pointer;
-  background: var(--bg-secondary);
-  color: var(--text-secondary);
-  transition: 0.2s;
-}
-.toggle-tab.active {
-  background: var(--accent);
-  color: white;
-}
-
-/* Загрузка */
 .upload-zone {
   border: 2px dashed var(--accent);
   border-radius: 1rem;
@@ -135,7 +110,6 @@ nav { display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap; }
 }
 .progress-bar div { height: 100%; width: 0%; background: var(--accent); transition: width 0.3s; }
 
-/* Профиль */
 .profile-container {
   max-width: 900px;
   margin: 1.5rem auto;
@@ -175,24 +149,6 @@ nav { display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap; }
 .file-link { color: var(--accent); text-decoration: none; cursor: pointer; }
 .file-link:hover { text-decoration: underline; }
 
-/* Галерея альбома */
-.album-gallery {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
-  gap: 1rem;
-  margin-top: 1rem;
-}
-.album-item img, .album-item video {
-  width: 100%;
-  border-radius: 0.5rem;
-  cursor: pointer;
-  border: 1px solid var(--border);
-  transition: transform 0.2s;
-}
-.album-item img:hover, .album-item video:hover {
-  transform: scale(1.03);
-}
-
 .toast {
   position: fixed;
   bottom: 1.5rem;
@@ -207,7 +163,6 @@ nav { display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap; }
   max-width: 90vw;
 }
 
-/* Адаптация под телефоны */
 @media (max-width: 768px) {
   .header {
     flex-direction: column;
@@ -231,11 +186,6 @@ nav { display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap; }
   .file-table th, .file-table td {
     padding: 0.6rem;
     font-size: 0.8rem;
-  }
-
-  .album-gallery {
-    grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
-    gap: 0.7rem;
   }
 
   .toast {
