@@ -37,13 +37,11 @@ function copyToClipboard(text) {
     });
 }
 
-// ========== АВТОРИЗАЦИЯ ==========
+// ---------- АВТОРИЗАЦИЯ ----------
 function renderAuth() {
-  let regMethod = 'email'; // 'email' или 'phone'
-  let step = 1;
-
+  let regMethod = 'email';
   mainContent.innerHTML = `
-    <div class="auth-container" id="authForm">
+    <div class="auth-container">
       <h2>Вход / Регистрация</h2>
       <div class="toggle-tabs" id="methodTabs">
         <div class="toggle-tab active" data-method="email">Email</div>
@@ -66,7 +64,7 @@ function renderAuth() {
       <div id="authStep2" class="hidden">
         <p>Мы отправили код на <strong id="contactDisplay"></strong></p>
         <div class="form-group">
-          <label>Код подтверждения</label>
+          <label>Код из письма</label>
           <input type="text" id="authCode" placeholder="6 цифр">
         </div>
         <button class="btn btn-primary" id="verifyBtn">Подтвердить</button>
@@ -75,23 +73,21 @@ function renderAuth() {
     </div>
   `;
 
-  const methodTabs = document.querySelectorAll('.toggle-tab');
-  const contactLabel = document.getElementById('contactLabel');
-  const contactValue = document.getElementById('contactValue');
-
-  methodTabs.forEach(tab => {
+  // Переключение вкладок
+  document.querySelectorAll('.toggle-tab').forEach(tab => {
     tab.onclick = () => {
-      methodTabs.forEach(t => t.classList.remove('active'));
+      document.querySelectorAll('.toggle-tab').forEach(t => t.classList.remove('active'));
       tab.classList.add('active');
       regMethod = tab.dataset.method;
-      contactLabel.textContent = regMethod === 'email' ? 'Email' : 'Номер телефона';
-      contactValue.placeholder = regMethod === 'email' ? 'Введите email' : 'Введите номер телефона';
-      contactValue.value = '';
+      document.getElementById('contactLabel').textContent = regMethod === 'email' ? 'Email' : 'Номер телефона';
+      document.getElementById('contactValue').placeholder = regMethod === 'email' ? 'Введите email' : 'Введите номер телефона';
+      document.getElementById('contactValue').value = '';
     };
   });
 
+  // Кнопка Войти
   document.getElementById('loginBtn').onclick = async () => {
-    const contact = contactValue.value.trim();
+    const contact = document.getElementById('contactValue').value.trim();
     const password = document.getElementById('authPassword').value;
     if (!contact || !password) return showToast('Заполни поля', true);
     try {
@@ -100,27 +96,36 @@ function renderAuth() {
     } catch (e) { showToast(e.message, true); }
   };
 
+  // Кнопка Получить код
   document.getElementById('requestCodeBtn').onclick = async () => {
-    const contact = contactValue.value.trim();
+    const contact = document.getElementById('contactValue').value.trim();
     const password = document.getElementById('authPassword').value;
     if (!contact || !password) return showToast('Заполни поля', true);
     try {
       const endpoint = regMethod === 'email' ? '/api/register/request-code' : '/api/register/request-phone-code';
-      await api(endpoint, { method: 'POST', body: { [regMethod]: contact, password } });
+      const body = regMethod === 'email' ? { email: contact, password } : { phone: contact, password };
+      const resp = await api(endpoint, { method: 'POST', body });
       document.getElementById('authStep1').classList.add('hidden');
       document.getElementById('authStep2').classList.remove('hidden');
       document.getElementById('contactDisplay').textContent = contact;
-      showToast('Код отправлен');
+      // Показываем код прямо на экране
+      if (resp.debugCode) {
+        showToast(`Ваш код: ${resp.debugCode}`, false);
+      } else {
+        showToast('Код отправлен (проверьте уведомление)');
+      }
     } catch (e) { showToast(e.message, true); }
   };
 
+  // Кнопка Подтвердить
   document.getElementById('verifyBtn').onclick = async () => {
-    const contact = contactValue.value.trim();
+    const contact = document.getElementById('contactValue').value.trim();
     const code = document.getElementById('authCode').value.trim();
     if (!code) return showToast('Введи код', true);
     try {
       const endpoint = regMethod === 'email' ? '/api/register/verify-code' : '/api/register/verify-phone-code';
-      await api(endpoint, { method: 'POST', body: { [regMethod]: contact, code } });
+      const body = regMethod === 'email' ? { email: contact, code } : { phone: contact, code };
+      await api(endpoint, { method: 'POST', body });
       checkAuth();
     } catch (e) { showToast(e.message, true); }
   };
@@ -131,7 +136,7 @@ function renderAuth() {
   };
 }
 
-// ========== НАВИГАЦИЯ ==========
+// ---------- НАВИГАЦИЯ ----------
 function updateNav() {
   if (currentUser) {
     navLinks.innerHTML = `
@@ -166,7 +171,7 @@ async function checkAuth() {
   }
 }
 
-// ========== ЗАГРУЗКА С АЛЬБОМАМИ ==========
+// ---------- ЗАГРУЗКА ----------
 function renderUpload() {
   mainContent.innerHTML = `
     <div class="upload-zone" id="dropZone">
@@ -198,10 +203,8 @@ function renderUpload() {
     if (!files.length) return;
     progressBar.classList.remove('hidden');
     uploadStatus.textContent = `Загружается ${files.length} файл(ов)...`;
-
     const formData = new FormData();
     for (const file of files) formData.append('files', file);
-
     const xhr = new XMLHttpRequest();
     xhr.open('POST', '/api/upload');
     xhr.upload.onprogress = (e) => {
@@ -240,7 +243,7 @@ function showCopyToast(link, name) {
   setTimeout(() => { toast.classList.add('hidden'); toast.textContent = ''; }, 8000);
 }
 
-// ========== ПРОФИЛЬ (с альбомами) ==========
+// ---------- ПРОФИЛЬ ----------
 async function renderProfile() {
   try {
     const data = await api('/api/profile');
