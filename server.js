@@ -16,6 +16,32 @@ async function initDB() {
   await db.write();
 }
 
+// --- Отправка писем через MailerSend API (бесплатно, без номера телефона) ---
+const MAILERSEND_API_KEY = process.env.MAILERSEND_API_KEY || '';
+const SENDER_EMAIL = 'dentafull95@gmail.com';  // ← твоя подтверждённая почта
+
+async function sendEmail(email, code) {
+  if (!MAILERSEND_API_KEY) {
+    console.log(`[ТЕСТ] Код для ${email}: ${code}`);
+    return;
+  }
+  const data = {
+    from: { email: SENDER_EMAIL },
+    to: [{ email }],
+    subject: 'Код подтверждения IMGUT.DOKV',
+    text: `Твой код для входа: ${code}`
+  };
+  await fetch('https://api.mailersend.com/v1/email', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${MAILERSEND_API_KEY}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify(data)
+  });
+}
+// -------------------------------------------------------------
+
 const app = express();
 const PORT = process.env.PORT || 3000;
 
@@ -43,7 +69,7 @@ function requireAuth(req, res, next) {
   res.status(401).json({ error: 'Требуется авторизация' });
 }
 
-// Запрос кода на Email (без реальной отправки)
+// Запрос кода на Email
 app.post('/api/register/request-code', async (req, res) => {
   const { email, password } = req.body;
   if (!email || !password) return res.status(400).json({ error: 'Email и пароль обязательны' });
@@ -52,12 +78,16 @@ app.post('/api/register/request-code', async (req, res) => {
   db.data.pendingCodes = db.data.pendingCodes.filter(p => p.email !== email);
   db.data.pendingCodes.push({ email, phone: null, password, code, createdAt: Date.now() });
   await db.write();
-  // Код показывается на сайте (заглушка)
-  console.log(`[EMAIL] Код для ${email}: ${code}`);
-  res.json({ success: true, message: 'Код отправлен (для теста)', debugCode: code });
+  try {
+    await sendEmail(email, code);
+    res.json({ success: true, message: 'Код отправлен на почту' });
+  } catch (err) {
+    console.error('Ошибка отправки:', err);
+    res.status(500).json({ error: 'Не удалось отправить письмо' });
+  }
 });
 
-// Запрос кода на телефон (заглушка)
+// Запрос кода на Телефон (заглушка)
 app.post('/api/register/request-phone-code', async (req, res) => {
   const { phone, password } = req.body;
   if (!phone || !password) return res.status(400).json({ error: 'Телефон и пароль обязательны' });
@@ -67,7 +97,7 @@ app.post('/api/register/request-phone-code', async (req, res) => {
   db.data.pendingCodes.push({ email: null, phone, password, code, createdAt: Date.now() });
   await db.write();
   console.log(`[SMS] Код для ${phone}: ${code}`);
-  res.json({ success: true, message: 'Код отправлен (для теста)', debugCode: code });
+  res.json({ success: true, message: 'Код отправлен (проверьте консоль сервера)' });
 });
 
 // Подтверждение Email
@@ -85,7 +115,7 @@ app.post('/api/register/verify-code', async (req, res) => {
   res.json({ success: true });
 });
 
-// Подтверждение телефона
+// Подтверждение Телефона
 app.post('/api/register/verify-phone-code', async (req, res) => {
   const { phone, code } = req.body;
   const pending = db.data.pendingCodes.find(p => p.phone === phone && p.code === code);
@@ -122,7 +152,7 @@ app.get('/api/profile', requireAuth, async (req, res) => {
   res.json({ user: { id: user.id, email: user.email, phone: user.phone, storage_limit: user.storage_limit, used_storage: user.used_storage }, files, albums });
 });
 
-// Загрузка (альбомы)
+// Загрузка файлов (альбомы)
 app.post('/api/upload', requireAuth, (req, res) => {
   upload.array('files', 10)(req, res, async (err) => {
     if (err) return res.status(400).json({ error: err.message });
@@ -153,15 +183,14 @@ app.post('/api/upload', requireAuth, (req, res) => {
 
     if (req.files.length > 1) {
       const albumId = uuidv4();
-      const album = {
+      db.data.albums.push({
         id: albumId,
         user_id: user.id,
         fileIds: fileRecords.map(f => f.id),
         original_names: fileRecords.map(f => f.original_name),
         size: totalSize,
         upload_date: new Date().toISOString()
-      };
-      db.data.albums.push(album);
+      });
       user.used_storage += totalSize;
       await db.write();
       return res.json({ success: true, isAlbum: true, url: `/album/${albumId}` });
@@ -189,13 +218,11 @@ app.get('/album/:id', async (req, res) => {
   const files = db.data.files.filter(f => album.fileIds.includes(f.id));
   const items = files.map(f => {
     const url = `/file/${f.id}`;
-    if (f.mimetype.startsWith('video')) {
-      return `<video src="${url}" controls style="width:100%;border-radius:0.5rem;"></video>`;
-    } else {
-      return `<img src="${url}" alt="${f.original_name}" style="width:100%;border-radius:0.5rem;cursor:pointer;" onclick="window.open('${url}')">`;
-    }
+    return f.mimetype.startsWith('video')
+      ? `<video src="${url}" controls style="width:100%;border-radius:0.5rem;"></video>`
+      : `<img src="${url}" alt="${f.original_name}" style="width:100%;border-radius:0.5rem;cursor:pointer;" onclick="window.open('${url}')">`;
   }).join('');
-  res.send(`<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Альбом</title><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet"><style>body { background: #0a0f1f; color: #f1f5f9; font-family: 'Inter', sans-serif; padding: 1rem; } .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 1rem; }</style></head><body><h2>Альбом</h2><div class="grid">${items}</div></body></html>`);
+  res.send(`<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Альбом</title><style>body{background:#0a0f1f;color:#f1f5f9;font-family:Inter,sans-serif;padding:1rem}.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:1rem}</style></head><body><h2>Альбом</h2><div class="grid">${items}</div></body></html>`);
 });
 
 app.delete('/api/file/:id', requireAuth, async (req, res) => {
