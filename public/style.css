@@ -207,7 +207,7 @@ nav { display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap; }
   max-width: 90vw;
 }
 
-/* ----- Адаптация под телефоны ----- */
+/* Адаптация под телефоны */
 @media (max-width: 768px) {
   .header {
     flex-direction: column;
