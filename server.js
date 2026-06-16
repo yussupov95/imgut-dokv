@@ -17,31 +17,30 @@ async function initDB() {
   await db.write();
 }
 
-// Настройки почты (замени на свои для продакшена)
-const transporter = nodemailer.createTransport({
-  host: 'smtp.sendgrid.net',
-  port: 587,
-  secure: false,
-  auth: {
-    user: 'apikey',
-    pass: process.env.SENDGRID_API_KEY || 'ЗАГЛУШКА_API_KEY'
-  }
-});
-const senderEmail = process.env.SENDER_EMAIL || 'noreply@imgut.com';
+// ---- Настройки почты через твой Gmail ----
+const mailUser = process.env.MAIL_USER || '';
+const mailPass = process.env.MAIL_PASS || '';
+let transporter = null;
+if (mailUser && mailPass) {
+  transporter = nodemailer.createTransport({
+    service: 'gmail',
+    auth: { user: mailUser, pass: mailPass }
+  });
+}
 
 function sendEmail(email, code) {
-  if (process.env.SENDGRID_API_KEY) {
-    return transporter.sendMail({
-      from: senderEmail,
-      to: email,
-      subject: 'Код подтверждения IMGUT.DOKV',
-      text: `Твой код: ${code}`
-    });
-  } else {
-    console.log(`[EMAIL] Код для ${email}: ${code}`);
+  if (!transporter) {
+    console.log(`[ТЕСТ] Код для ${email}: ${code}`);
     return Promise.resolve();
   }
+  return transporter.sendMail({
+    from: mailUser,
+    to: email,
+    subject: 'Код подтверждения IMGUT.DOKV',
+    text: `Твой код для входа: ${code}`
+  });
 }
+// -----------------------------------------
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -70,7 +69,7 @@ function requireAuth(req, res, next) {
   res.status(401).json({ error: 'Требуется авторизация' });
 }
 
-// ====== РЕГИСТРАЦИЯ (email + phone) ======
+// Регистрация: запрос кода на email
 app.post('/api/register/request-code', async (req, res) => {
   const { email, password } = req.body;
   if (!email || !password) return res.status(400).json({ error: 'Email и пароль обязательны' });
@@ -81,14 +80,14 @@ app.post('/api/register/request-code', async (req, res) => {
   await db.write();
   try {
     await sendEmail(email, code);
-    res.json({ success: true, message: 'Код отправлен' });
+    res.json({ success: true, message: 'Код отправлен на почту' });
   } catch (err) {
-    db.data.pendingCodes = db.data.pendingCodes.filter(p => p.email !== email);
-    await db.write();
-    res.status(500).json({ error: 'Ошибка отправки кода' });
+    console.error('Ошибка отправки:', err);
+    res.status(500).json({ error: 'Не удалось отправить письмо' });
   }
 });
 
+// Регистрация: запрос кода на телефон (заглушка)
 app.post('/api/register/request-phone-code', async (req, res) => {
   const { phone, password } = req.body;
   if (!phone || !password) return res.status(400).json({ error: 'Телефон и пароль обязательны' });
@@ -97,20 +96,16 @@ app.post('/api/register/request-phone-code', async (req, res) => {
   db.data.pendingCodes = db.data.pendingCodes.filter(p => p.phone === phone);
   db.data.pendingCodes.push({ email: null, phone, password, code, createdAt: Date.now() });
   await db.write();
-  // Заглушка: выводим код в консоль и в ответ (только для теста!)
   console.log(`[SMS] Код для ${phone}: ${code}`);
-  res.json({ success: true, message: 'Код отправлен (проверьте консоль или уведомление)', debugCode: code });
+  res.json({ success: true, message: 'Код отправлен (для теста)', debugCode: code });
 });
 
+// Подтверждение email-кода
 app.post('/api/register/verify-code', async (req, res) => {
   const { email, code } = req.body;
   const pending = db.data.pendingCodes.find(p => p.email === email && p.code === code);
   if (!pending) return res.status(400).json({ error: 'Неверный код' });
-  if (Date.now() - pending.createdAt > 10*60*1000) {
-    db.data.pendingCodes = db.data.pendingCodes.filter(p => p.email !== email);
-    await db.write();
-    return res.status(410).json({ error: 'Код истёк' });
-  }
+  if (Date.now() - pending.createdAt > 10*60*1000) return res.status(410).json({ error: 'Код истёк' });
   const hashed = bcrypt.hashSync(pending.password, 10);
   const user = { id: uuidv4(), email, phone: null, password: hashed, storage_limit: 3221225472, used_storage: 0 };
   db.data.users.push(user);
@@ -120,15 +115,12 @@ app.post('/api/register/verify-code', async (req, res) => {
   res.json({ success: true });
 });
 
+// Подтверждение телефонного кода
 app.post('/api/register/verify-phone-code', async (req, res) => {
   const { phone, code } = req.body;
   const pending = db.data.pendingCodes.find(p => p.phone === phone && p.code === code);
   if (!pending) return res.status(400).json({ error: 'Неверный код' });
-  if (Date.now() - pending.createdAt > 10*60*1000) {
-    db.data.pendingCodes = db.data.pendingCodes.filter(p => p.phone === phone);
-    await db.write();
-    return res.status(410).json({ error: 'Код истёк' });
-  }
+  if (Date.now() - pending.createdAt > 10*60*1000) return res.status(410).json({ error: 'Код истёк' });
   const hashed = bcrypt.hashSync(pending.password, 10);
   const user = { id: uuidv4(), email: null, phone, password: hashed, storage_limit: 3221225472, used_storage: 0 };
   db.data.users.push(user);
@@ -138,14 +130,11 @@ app.post('/api/register/verify-phone-code', async (req, res) => {
   res.json({ success: true });
 });
 
-// ====== ВХОД (по контакту) ======
 app.post('/api/login', async (req, res) => {
   const { contact, password } = req.body;
   if (!contact || !password) return res.status(400).json({ error: 'Контакт и пароль обязательны' });
   const user = db.data.users.find(u => u.email === contact || u.phone === contact);
-  if (!user || !bcrypt.compareSync(password, user.password)) {
-    return res.status(401).json({ error: 'Неверные данные' });
-  }
+  if (!user || !bcrypt.compareSync(password, user.password)) return res.status(401).json({ error: 'Неверные данные' });
   req.session.userId = user.id;
   res.json({ success: true });
 });
@@ -162,7 +151,7 @@ app.get('/api/profile', requireAuth, async (req, res) => {
   res.json({ user: { id: user.id, email: user.email, phone: user.phone, storage_limit: user.storage_limit, used_storage: user.used_storage }, files, albums });
 });
 
-// ====== ЗАГРУЗКА ФАЙЛОВ (создание альбомов) ======
+// Загрузка (создание альбомов)
 app.post('/api/upload', requireAuth, (req, res) => {
   upload.array('files', 10)(req, res, async (err) => {
     if (err) return res.status(400).json({ error: err.message });
@@ -174,13 +163,12 @@ app.post('/api/upload', requireAuth, (req, res) => {
       return res.status(500).json({ error: 'Пользователь не найден' });
     }
 
-    const totalSize = req.files.reduce((sum, f) => sum + f.size, 0);
+    const totalSize = req.files.reduce((s, f) => s + f.size, 0);
     if (user.used_storage + totalSize > user.storage_limit) {
       req.files.forEach(f => fs.unlinkSync(f.path));
       return res.status(413).json({ error: 'Превышен лимит (3 ГБ)' });
     }
 
-    // Сохраняем файлы в БД
     const fileRecords = req.files.map(f => ({
       id: uuidv4(),
       user_id: user.id,
@@ -192,7 +180,6 @@ app.post('/api/upload', requireAuth, (req, res) => {
     }));
     db.data.files.push(...fileRecords);
 
-    // Если больше 1 файла -> создаём альбом
     if (req.files.length > 1) {
       const albumId = uuidv4();
       const album = {
@@ -208,7 +195,6 @@ app.post('/api/upload', requireAuth, (req, res) => {
       await db.write();
       return res.json({ success: true, isAlbum: true, url: `/album/${albumId}` });
     } else {
-      // Один файл
       const file = fileRecords[0];
       user.used_storage += file.size;
       await db.write();
@@ -217,7 +203,6 @@ app.post('/api/upload', requireAuth, (req, res) => {
   });
 });
 
-// ====== ПРОСМОТР ФАЙЛА / АЛЬБОМА ======
 app.get('/file/:id', async (req, res) => {
   const file = db.data.files.find(f => f.id === req.params.id);
   if (!file) return res.status(404).send('Файл не найден');
@@ -231,25 +216,17 @@ app.get('/album/:id', async (req, res) => {
   const album = db.data.albums.find(a => a.id === req.params.id);
   if (!album) return res.status(404).send('Альбом не найден');
   const files = db.data.files.filter(f => album.fileIds.includes(f.id));
-  // Простая HTML-галерея
   const items = files.map(f => {
-    const fileUrl = `/file/${f.id}`;
+    const url = `/file/${f.id}`;
     if (f.mimetype.startsWith('video')) {
-      return `<video src="${fileUrl}" controls style="width:100%;border-radius:0.5rem;"></video>`;
+      return `<video src="${url}" controls style="width:100%;border-radius:0.5rem;"></video>`;
     } else {
-      return `<img src="${fileUrl}" alt="${f.original_name}" style="width:100%;border-radius:0.5rem;cursor:pointer;" onclick="window.open('${fileUrl}')">`;
+      return `<img src="${url}" alt="${f.original_name}" style="width:100%;border-radius:0.5rem;cursor:pointer;" onclick="window.open('${url}')">`;
     }
   }).join('');
-  res.send(`
-    <!DOCTYPE html>
-    <html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Альбом</title>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
-    <style>body { background: #0a0f1f; color: #f1f5f9; font-family: 'Inter', sans-serif; padding: 1rem; } .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 1rem; }</style>
-    </head><body><h2>Альбом</h2><div class="grid">${items}</div></body></html>
-  `);
+  res.send(`<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Альбом</title><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet"><style>body { background: #0a0f1f; color: #f1f5f9; font-family: 'Inter', sans-serif; padding: 1rem; } .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 1rem; }</style></head><body><h2>Альбом</h2><div class="grid">${items}</div></body></html>`);
 });
 
-// ====== УДАЛЕНИЕ ======
 app.delete('/api/file/:id', requireAuth, async (req, res) => {
   const file = db.data.files.find(f => f.id === req.params.id && f.user_id === req.session.userId);
   if (!file) return res.status(404).json({ error: 'Файл не найден' });
@@ -258,7 +235,6 @@ app.delete('/api/file/:id', requireAuth, async (req, res) => {
   db.data.files = db.data.files.filter(f => f.id !== req.params.id);
   const user = db.data.users.find(u => u.id === req.session.userId);
   user.used_storage -= file.size;
-  // Удалить файл из альбомов, где он есть
   db.data.albums.forEach(album => {
     album.fileIds = album.fileIds.filter(id => id !== req.params.id);
     if (album.fileIds.length === 0) album._deleted = true;
@@ -271,7 +247,6 @@ app.delete('/api/file/:id', requireAuth, async (req, res) => {
 app.delete('/api/album/:id', requireAuth, async (req, res) => {
   const album = db.data.albums.find(a => a.id === req.params.id && a.user_id === req.session.userId);
   if (!album) return res.status(404).json({ error: 'Альбом не найден' });
-  // Удаляем все файлы альбома
   for (const fileId of album.fileIds) {
     const file = db.data.files.find(f => f.id === fileId);
     if (file) {
@@ -285,6 +260,16 @@ app.delete('/api/album/:id', requireAuth, async (req, res) => {
   db.data.albums = db.data.albums.filter(a => a.id !== req.params.id);
   await db.write();
   res.json({ success: true });
+});
+
+// Глобальный обработчик ошибок
+app.use((err, req, res, next) => {
+  console.error('Глобальная ошибка:', err);
+  if (req.path.startsWith('/api') || req.path.startsWith('/file') || req.path.startsWith('/album')) {
+    res.status(500).json({ error: 'Внутренняя ошибка сервера' });
+  } else {
+    next(err);
+  }
 });
 
 async function start() {
