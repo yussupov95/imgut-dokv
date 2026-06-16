@@ -17,15 +17,17 @@ body {
   background: var(--bg-primary);
   color: var(--text-primary);
   min-height: 100vh;
+  padding-bottom: 5rem;
 }
 
 .hidden { display: none !important; }
 
+/* Хедер */
 .header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 1rem 2rem;
+  padding: 1rem 1.5rem;
   background: var(--bg-secondary);
   border-bottom: 1px solid var(--border);
   position: sticky;
@@ -33,22 +35,24 @@ body {
   z-index: 100;
 }
 .logo {
-  font-size: 1.8rem;
+  font-size: 1.5rem;
   font-weight: 700;
   cursor: pointer;
   color: #e2e8f0;
 }
 .logo span { color: var(--accent); }
-nav { display: flex; gap: 1rem; align-items: center; }
+nav { display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap; }
 
+/* Кнопки */
 .btn {
-  padding: 0.5rem 1.2rem;
+  padding: 0.6rem 1.2rem;
   border-radius: 0.5rem;
   border: none;
   cursor: pointer;
   font-weight: 500;
   transition: all 0.2s;
   font-size: 0.9rem;
+  white-space: nowrap;
 }
 .btn-primary { background: var(--accent); color: white; }
 .btn-primary:hover { background: var(--accent-hover); transform: translateY(-1px); }
@@ -56,19 +60,21 @@ nav { display: flex; gap: 1rem; align-items: center; }
 .btn-outline:hover { background: var(--accent); color: white; }
 .btn-danger { background: var(--danger); color: white; }
 .btn-danger:hover { background: #dc2626; }
+.btn-sm { padding: 0.3rem 0.6rem; font-size: 0.8rem; }
 
+/* Формы */
 .auth-container {
   max-width: 400px;
-  margin: 3rem auto;
+  margin: 2rem auto;
   background: var(--bg-card);
-  padding: 2rem;
+  padding: 1.5rem;
   border-radius: 1rem;
   border: 1px solid var(--border);
 }
 .auth-container h2 { margin-bottom: 1.5rem; text-align: center; }
 .form-group { margin-bottom: 1rem; }
 .form-group label { display: block; margin-bottom: 0.3rem; color: var(--text-secondary); font-size: 0.9rem; }
-.form-group input {
+.form-group input, .form-group select {
   width: 100%;
   padding: 0.7rem;
   border-radius: 0.5rem;
@@ -77,22 +83,47 @@ nav { display: flex; gap: 1rem; align-items: center; }
   color: var(--text-primary);
   font-size: 1rem;
 }
-.form-group input:focus { outline: none; border-color: var(--accent); }
+.form-group input:focus, .form-group select:focus { outline: none; border-color: var(--accent); }
 
+/* Переключатель способа регистрации */
+.toggle-tabs {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 1.5rem;
+}
+.toggle-tab {
+  flex: 1;
+  text-align: center;
+  padding: 0.5rem;
+  border-radius: 0.5rem;
+  cursor: pointer;
+  background: var(--bg-secondary);
+  color: var(--text-secondary);
+  transition: 0.2s;
+}
+.toggle-tab.active {
+  background: var(--accent);
+  color: white;
+}
+
+/* Загрузка */
 .upload-zone {
   border: 2px dashed var(--accent);
   border-radius: 1rem;
-  padding: 3rem;
+  padding: 2.5rem 1rem;
   text-align: center;
-  margin: 2rem auto;
+  margin: 1.5rem auto;
   max-width: 600px;
   background: var(--bg-card);
   cursor: pointer;
   transition: background 0.3s;
 }
-.upload-zone:hover, .upload-zone.dragover { background: var(--bg-secondary); border-color: var(--accent-hover); }
-.upload-zone .icon { font-size: 3rem; margin-bottom: 1rem; }
-.upload-zone p { color: var(--text-secondary); }
+.upload-zone:hover, .upload-zone.dragover {
+  background: var(--bg-secondary);
+  border-color: var(--accent-hover);
+}
+.upload-zone .icon { font-size: 2.5rem; margin-bottom: 0.5rem; }
+.upload-zone p { color: var(--text-secondary); font-size: 0.95rem; }
 
 .progress-bar {
   width: 100%;
@@ -104,16 +135,17 @@ nav { display: flex; gap: 1rem; align-items: center; }
 }
 .progress-bar div { height: 100%; width: 0%; background: var(--accent); transition: width 0.3s; }
 
+/* Профиль */
 .profile-container {
   max-width: 900px;
-  margin: 2rem auto;
+  margin: 1.5rem auto;
   padding: 0 1rem;
 }
 .storage-info {
   background: var(--bg-card);
-  padding: 1.5rem;
+  padding: 1.2rem;
   border-radius: 1rem;
-  margin-bottom: 2rem;
+  margin-bottom: 1.5rem;
   border: 1px solid var(--border);
 }
 .storage-bar {
@@ -143,15 +175,73 @@ nav { display: flex; gap: 1rem; align-items: center; }
 .file-link { color: var(--accent); text-decoration: none; cursor: pointer; }
 .file-link:hover { text-decoration: underline; }
 
+/* Галерея альбома */
+.album-gallery {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 1rem;
+  margin-top: 1rem;
+}
+.album-item img, .album-item video {
+  width: 100%;
+  border-radius: 0.5rem;
+  cursor: pointer;
+  border: 1px solid var(--border);
+  transition: transform 0.2s;
+}
+.album-item img:hover, .album-item video:hover {
+  transform: scale(1.03);
+}
+
 .toast {
   position: fixed;
-  bottom: 2rem;
-  right: 2rem;
+  bottom: 1.5rem;
+  right: 1.5rem;
   background: var(--bg-card);
   color: var(--text-primary);
-  padding: 1rem 1.5rem;
+  padding: 0.8rem 1.2rem;
   border-radius: 0.5rem;
   border: 1px solid var(--border);
   box-shadow: 0 4px 12px rgba(0,0,0,0.3);
   z-index: 999;
+  max-width: 90vw;
+}
+
+/* ----- Адаптация под телефоны ----- */
+@media (max-width: 768px) {
+  .header {
+    flex-direction: column;
+    gap: 0.5rem;
+    padding: 0.8rem 1rem;
+  }
+  .logo { font-size: 1.3rem; }
+  nav { justify-content: center; }
+  .btn { padding: 0.5rem 0.8rem; font-size: 0.8rem; }
+
+  .auth-container {
+    margin: 1.5rem 1rem;
+    padding: 1.2rem;
+  }
+
+  .upload-zone {
+    margin: 1rem;
+    padding: 1.8rem 1rem;
+  }
+
+  .file-table th, .file-table td {
+    padding: 0.6rem;
+    font-size: 0.8rem;
+  }
+
+  .album-gallery {
+    grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+    gap: 0.7rem;
+  }
+
+  .toast {
+    left: 1rem;
+    right: 1rem;
+    bottom: 1rem;
+    font-size: 0.85rem;
+  }
 }
