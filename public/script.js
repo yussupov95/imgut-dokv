@@ -1,313 +1,197 @@
-const API = '';
-let currentUser = null;
-
-const mainContent = document.getElementById('mainContent');
-const navLinks = document.getElementById('navLinks');
-const toast = document.getElementById('toast');
-const homeBtn = document.getElementById('homeBtn');
-
-function showToast(msg, isError = false) {
-  toast.textContent = msg;
-  toast.style.background = isError ? 'var(--danger)' : 'var(--bg-card)';
-  toast.classList.remove('hidden');
-  setTimeout(() => toast.classList.add('hidden'), 4000);
+:root {
+  --bg-primary: #0a0f1f;
+  --bg-secondary: #111a2e;
+  --bg-card: #16213e;
+  --accent: #3b82f6;
+  --accent-hover: #2563eb;
+  --text-primary: #f1f5f9;
+  --text-secondary: #94a3b8;
+  --danger: #ef4444;
+  --success: #22c55e;
+  --border: #1e293b;
 }
 
-async function api(url, options = {}) {
-  const res = await fetch(url, {
-    headers: { 'Content-Type': 'application/json', ...options.headers },
-    ...options,
-    body: options.body instanceof FormData ? options.body : JSON.stringify(options.body)
-  });
-  const data = await res.json();
-  if (!res.ok) throw new Error(data.error || 'Ошибка');
-  return data;
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  font-family: 'Inter', sans-serif;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  min-height: 100vh;
+  padding-bottom: 5rem;
 }
 
-function copyToClipboard(text) {
-  navigator.clipboard.writeText(text).then(() => showToast('✅ Ссылка скопирована!'))
-    .catch(() => {
-      const textarea = document.createElement('textarea');
-      textarea.value = text;
-      document.body.appendChild(textarea);
-      textarea.select();
-      document.execCommand('copy');
-      document.body.removeChild(textarea);
-      showToast('✅ Ссылка скопирована!');
-    });
+.hidden { display: none !important; }
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem 1.5rem;
+  background: var(--bg-secondary);
+  border-bottom: 1px solid var(--border);
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+.logo {
+  font-size: 1.5rem;
+  font-weight: 700;
+  cursor: pointer;
+  color: #e2e8f0;
+}
+.logo span { color: var(--accent); }
+nav { display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap; }
+
+.btn {
+  padding: 0.6rem 1.2rem;
+  border-radius: 0.5rem;
+  border: none;
+  cursor: pointer;
+  font-weight: 500;
+  transition: all 0.2s;
+  font-size: 0.9rem;
+  white-space: nowrap;
+}
+.btn-primary { background: var(--accent); color: white; }
+.btn-primary:hover { background: var(--accent-hover); transform: translateY(-1px); }
+.btn-outline { background: transparent; border: 1px solid var(--accent); color: var(--accent); }
+.btn-outline:hover { background: var(--accent); color: white; }
+.btn-danger { background: var(--danger); color: white; }
+.btn-danger:hover { background: #dc2626; }
+.btn-sm { padding: 0.3rem 0.6rem; font-size: 0.8rem; }
+
+.auth-container {
+  max-width: 400px;
+  margin: 2rem auto;
+  background: var(--bg-card);
+  padding: 1.5rem;
+  border-radius: 1rem;
+  border: 1px solid var(--border);
+}
+.auth-container h2 { margin-bottom: 1.5rem; text-align: center; }
+.form-group { margin-bottom: 1rem; }
+.form-group label { display: block; margin-bottom: 0.3rem; color: var(--text-secondary); font-size: 0.9rem; }
+.form-group input {
+  width: 100%;
+  padding: 0.7rem;
+  border-radius: 0.5rem;
+  border: 1px solid var(--border);
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  font-size: 1rem;
+}
+.form-group input:focus { outline: none; border-color: var(--accent); }
+
+.upload-zone {
+  border: 2px dashed var(--accent);
+  border-radius: 1rem;
+  padding: 2.5rem 1rem;
+  text-align: center;
+  margin: 1.5rem auto;
+  max-width: 600px;
+  background: var(--bg-card);
+  cursor: pointer;
+  transition: background 0.3s;
+}
+.upload-zone:hover, .upload-zone.dragover {
+  background: var(--bg-secondary);
+  border-color: var(--accent-hover);
+}
+.upload-zone .icon { font-size: 2.5rem; margin-bottom: 0.5rem; }
+.upload-zone p { color: var(--text-secondary); font-size: 0.95rem; }
+
+.progress-bar {
+  width: 100%;
+  height: 6px;
+  background: var(--bg-secondary);
+  border-radius: 3px;
+  margin-top: 1rem;
+  overflow: hidden;
+}
+.progress-bar div { height: 100%; width: 0%; background: var(--accent); transition: width 0.3s; }
+
+.profile-container {
+  max-width: 900px;
+  margin: 1.5rem auto;
+  padding: 0 1rem;
+}
+.storage-info {
+  background: var(--bg-card);
+  padding: 1.2rem;
+  border-radius: 1rem;
+  margin-bottom: 1.5rem;
+  border: 1px solid var(--border);
+}
+.storage-bar {
+  height: 10px;
+  background: var(--bg-secondary);
+  border-radius: 5px;
+  margin: 0.5rem 0;
+  overflow: hidden;
+}
+.storage-bar-fill { height: 100%; background: var(--accent); width: 0%; }
+
+.file-table {
+  width: 100%;
+  border-collapse: collapse;
+  background: var(--bg-card);
+  border-radius: 1rem;
+  overflow: hidden;
+  border: 1px solid var(--border);
+}
+.file-table th, .file-table td {
+  padding: 0.8rem;
+  text-align: left;
+  border-bottom: 1px solid var(--border);
+}
+.file-table th { background: var(--bg-secondary); color: var(--text-secondary); font-weight: 500; }
+.file-table tr:hover td { background: rgba(59, 130, 246, 0.05); }
+.file-link { color: var(--accent); text-decoration: none; cursor: pointer; }
+.file-link:hover { text-decoration: underline; }
+
+.toast {
+  position: fixed;
+  bottom: 1.5rem;
+  right: 1.5rem;
+  background: var(--bg-card);
+  color: var(--text-primary);
+  padding: 0.8rem 1.2rem;
+  border-radius: 0.5rem;
+  border: 1px solid var(--border);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+  z-index: 999;
+  max-width: 90vw;
 }
 
-// ---------- АВТОРИЗАЦИЯ ----------
-function renderAuth() {
-  let regMethod = 'email';
-  mainContent.innerHTML = `
-    <div class="auth-container">
-      <h2>Вход / Регистрация</h2>
-      <div class="toggle-tabs" id="methodTabs">
-        <div class="toggle-tab active" data-method="email">Email</div>
-        <div class="toggle-tab" data-method="phone">Телефон</div>
-      </div>
-      <div id="authStep1">
-        <div class="form-group">
-          <label id="contactLabel">Email</label>
-          <input type="text" id="contactValue" placeholder="Введите email или телефон">
-        </div>
-        <div class="form-group">
-          <label>Пароль</label>
-          <input type="password" id="authPassword" placeholder="Минимум 4 символа">
-        </div>
-        <div style="display:flex; gap:1rem; margin-top:1.5rem;">
-          <button class="btn btn-primary" id="loginBtn">Войти</button>
-          <button class="btn btn-outline" id="requestCodeBtn">Получить код</button>
-        </div>
-      </div>
-      <div id="authStep2" class="hidden">
-        <p>Мы отправили код на <strong id="contactDisplay"></strong></p>
-        <div class="form-group">
-          <label>Код из письма</label>
-          <input type="text" id="authCode" placeholder="6 цифр">
-        </div>
-        <button class="btn btn-primary" id="verifyBtn">Подтвердить</button>
-        <button class="btn btn-outline" id="backBtn" style="margin-left:0.5rem;">Назад</button>
-      </div>
-    </div>
-  `;
+@media (max-width: 768px) {
+  .header {
+    flex-direction: column;
+    gap: 0.5rem;
+    padding: 0.8rem 1rem;
+  }
+  .logo { font-size: 1.3rem; }
+  nav { justify-content: center; }
+  .btn { padding: 0.5rem 0.8rem; font-size: 0.8rem; }
 
-  // Переключение вкладок
-  document.querySelectorAll('.toggle-tab').forEach(tab => {
-    tab.onclick = () => {
-      document.querySelectorAll('.toggle-tab').forEach(t => t.classList.remove('active'));
-      tab.classList.add('active');
-      regMethod = tab.dataset.method;
-      document.getElementById('contactLabel').textContent = regMethod === 'email' ? 'Email' : 'Номер телефона';
-      document.getElementById('contactValue').placeholder = regMethod === 'email' ? 'Введите email' : 'Введите номер телефона';
-      document.getElementById('contactValue').value = '';
-    };
-  });
+  .auth-container {
+    margin: 1.5rem 1rem;
+    padding: 1.2rem;
+  }
 
-  // Кнопка Войти
-  document.getElementById('loginBtn').onclick = async () => {
-    const contact = document.getElementById('contactValue').value.trim();
-    const password = document.getElementById('authPassword').value;
-    if (!contact || !password) return showToast('Заполни поля', true);
-    try {
-      await api('/api/login', { method: 'POST', body: { contact, password } });
-      checkAuth();
-    } catch (e) { showToast(e.message, true); }
-  };
+  .upload-zone {
+    margin: 1rem;
+    padding: 1.8rem 1rem;
+  }
 
-  // Кнопка Получить код
-  document.getElementById('requestCodeBtn').onclick = async () => {
-    const contact = document.getElementById('contactValue').value.trim();
-    const password = document.getElementById('authPassword').value;
-    if (!contact || !password) return showToast('Заполни поля', true);
-    try {
-      const endpoint = regMethod === 'email' ? '/api/register/request-code' : '/api/register/request-phone-code';
-      const body = regMethod === 'email' ? { email: contact, password } : { phone: contact, password };
-      await api(endpoint, { method: 'POST', body });
-      document.getElementById('authStep1').classList.add('hidden');
-      document.getElementById('authStep2').classList.remove('hidden');
-      document.getElementById('contactDisplay').textContent = contact;
-      showToast('Код отправлен на почту. Проверьте папку "Входящие" или "Спам".');
-    } catch (e) { showToast(e.message, true); }
-  };
+  .file-table th, .file-table td {
+    padding: 0.6rem;
+    font-size: 0.8rem;
+  }
 
-  // Кнопка Подтвердить
-  document.getElementById('verifyBtn').onclick = async () => {
-    const contact = document.getElementById('contactValue').value.trim();
-    const code = document.getElementById('authCode').value.trim();
-    if (!code) return showToast('Введи код', true);
-    try {
-      const endpoint = regMethod === 'email' ? '/api/register/verify-code' : '/api/register/verify-phone-code';
-      const body = regMethod === 'email' ? { email: contact, code } : { phone: contact, code };
-      await api(endpoint, { method: 'POST', body });
-      checkAuth();
-    } catch (e) { showToast(e.message, true); }
-  };
-
-  document.getElementById('backBtn').onclick = () => {
-    document.getElementById('authStep2').classList.add('hidden');
-    document.getElementById('authStep1').classList.remove('hidden');
-  };
-}
-
-// ---------- НАВИГАЦИЯ ----------
-function updateNav() {
-  if (currentUser) {
-    navLinks.innerHTML = `
-      <button class="btn btn-outline" id="uploadNav">Загрузить</button>
-      <button class="btn btn-outline" id="profileNav">Мой профиль</button>
-      <button class="btn btn-danger" id="logoutNav">Выйти</button>
-    `;
-    document.getElementById('uploadNav').onclick = renderUpload;
-    document.getElementById('profileNav').onclick = renderProfile;
-    document.getElementById('logoutNav').onclick = async () => {
-      await api('/api/logout', { method: 'POST' });
-      currentUser = null;
-      updateNav();
-      renderAuth();
-    };
-  } else {
-    navLinks.innerHTML = `<button class="btn btn-primary" id="loginNav">Войти</button>`;
-    document.getElementById('loginNav').onclick = renderAuth;
+  .toast {
+    left: 1rem;
+    right: 1rem;
+    bottom: 1rem;
+    font-size: 0.85rem;
   }
 }
-
-async function checkAuth() {
-  try {
-    const data = await api('/api/profile');
-    currentUser = data.user;
-    updateNav();
-    renderUpload();
-  } catch {
-    currentUser = null;
-    updateNav();
-    renderAuth();
-  }
-}
-
-// ---------- ЗАГРУЗКА ----------
-function renderUpload() {
-  mainContent.innerHTML = `
-    <div class="upload-zone" id="dropZone">
-      <div class="icon">⬆️</div>
-      <p>Перетащи файлы сюда или нажми для выбора</p>
-      <p style="font-size:0.8rem; color:var(--text-secondary);">Фото и видео до 500 МБ. Несколько файлов = альбом с одной ссылкой.</p>
-      <input type="file" id="fileInput" multiple accept="image/*,video/*" hidden>
-      <div class="progress-bar hidden" id="progressBar"><div id="progressFill"></div></div>
-      <p id="uploadStatus" style="margin-top:0.5rem; font-size:0.9rem;"></p>
-    </div>
-  `;
-  const dropZone = document.getElementById('dropZone');
-  const fileInput = document.getElementById('fileInput');
-  const progressBar = document.getElementById('progressBar');
-  const progressFill = document.getElementById('progressFill');
-  const uploadStatus = document.getElementById('uploadStatus');
-
-  dropZone.onclick = () => fileInput.click();
-  dropZone.ondragover = (e) => { e.preventDefault(); dropZone.classList.add('dragover'); };
-  dropZone.ondragleave = () => dropZone.classList.remove('dragover');
-  dropZone.ondrop = (e) => {
-    e.preventDefault();
-    dropZone.classList.remove('dragover');
-    handleFiles(e.dataTransfer.files);
-  };
-  fileInput.onchange = () => handleFiles(fileInput.files);
-
-  async function handleFiles(files) {
-    if (!files.length) return;
-    progressBar.classList.remove('hidden');
-    uploadStatus.textContent = `Загружается ${files.length} файл(ов)...`;
-    const formData = new FormData();
-    for (const file of files) formData.append('files', file);
-    const xhr = new XMLHttpRequest();
-    xhr.open('POST', '/api/upload');
-    xhr.upload.onprogress = (e) => {
-      if (e.lengthComputable) progressFill.style.width = (e.loaded / e.total) * 100 + '%';
-    };
-    xhr.onload = () => {
-      progressBar.classList.add('hidden');
-      progressFill.style.width = '0%';
-      if (xhr.status === 200) {
-        const resp = JSON.parse(xhr.responseText);
-        const link = window.location.origin + resp.url;
-        showCopyToast(link, resp.isAlbum ? 'Альбом' : resp.file.original_name);
-        uploadStatus.textContent = '';
-      } else {
-        const err = JSON.parse(xhr.responseText);
-        showToast(err.error || 'Ошибка загрузки', true);
-        uploadStatus.textContent = 'Ошибка';
-      }
-    };
-    xhr.onerror = () => { progressBar.classList.add('hidden'); showToast('Сетевая ошибка', true); };
-    xhr.send(formData);
-  }
-}
-
-function showCopyToast(link, name) {
-  toast.classList.add('hidden');
-  toast.innerHTML = `
-    <span>✅ ${name} загружен!</span>
-    <div style="margin-top:0.5rem; display:flex; gap:0.5rem; align-items:center; flex-wrap:wrap;">
-      <input value="${link}" readonly style="flex:1; padding:0.3rem; border-radius:4px; border:1px solid var(--border); background:var(--bg-secondary); color:var(--text-primary); font-size:0.8rem; min-width:150px;" onclick="this.select()">
-      <button class="btn btn-primary btn-sm" onclick="copyToClipboard('${link}')">📋 Копировать</button>
-    </div>
-  `;
-  toast.style.background = 'var(--bg-card)';
-  toast.classList.remove('hidden');
-  setTimeout(() => { toast.classList.add('hidden'); toast.textContent = ''; }, 8000);
-}
-
-// ---------- ПРОФИЛЬ ----------
-async function renderProfile() {
-  try {
-    const data = await api('/api/profile');
-    const user = data.user;
-    const files = data.files || [];
-    const albums = data.albums || [];
-    const usedGB = (user.used_storage / 1073741824).toFixed(2);
-    const totalGB = (user.storage_limit / 1073741824).toFixed(2);
-    const percent = (user.used_storage / user.storage_limit) * 100;
-
-    let albumsHtml = '';
-    albums.forEach(album => {
-      const sizeMB = (album.size / 1048576).toFixed(2);
-      const link = `${window.location.origin}/album/${album.id}`;
-      albumsHtml += `
-        <tr>
-          <td>📁 ${album.original_names?.slice(0,2).join(', ')}${album.fileIds.length > 2 ? '…' : ''}</td>
-          <td>${sizeMB} МБ</td>
-          <td><a href="${link}" target="_blank" class="file-link">Открыть</a>
-              <button class="btn btn-outline btn-sm" style="margin-left:0.5rem;" onclick="copyToClipboard('${link}')">📋</button></td>
-          <td><button class="btn btn-danger btn-sm" data-id="${album.id}" data-type="album">Удалить</button></td>
-        </tr>`;
-    });
-
-    let filesHtml = '';
-    files.forEach(f => {
-      const sizeMB = (f.size / 1048576).toFixed(2);
-      const typeIcon = f.mimetype.startsWith('video') ? '🎬' : '🖼️';
-      const link = `${window.location.origin}/file/${f.id}`;
-      filesHtml += `
-        <tr>
-          <td>${typeIcon} ${f.original_name}</td>
-          <td>${sizeMB} МБ</td>
-          <td><a href="${link}" target="_blank" class="file-link">Открыть</a>
-              <button class="btn btn-outline btn-sm" style="margin-left:0.5rem;" onclick="copyToClipboard('${link}')">📋</button></td>
-          <td><button class="btn btn-danger btn-sm" data-id="${f.id}" data-type="file">Удалить</button></td>
-        </tr>`;
-    });
-
-    mainContent.innerHTML = `
-      <div class="profile-container">
-        <h2>Профиль: ${user.email || user.phone || 'Пользователь'}</h2>
-        <div class="storage-info">
-          <div style="display:flex; justify-content:space-between;">
-            <span>Использовано</span>
-            <span>${usedGB} ГБ из ${totalGB} ГБ</span>
-          </div>
-          <div class="storage-bar"><div class="storage-bar-fill" style="width:${percent}%"></div></div>
-        </div>
-        ${albums.length ? `<h3>Альбомы (${albums.length})</h3>
-          <table class="file-table"><thead><tr><th>Содержимое</th><th>Размер</th><th>Ссылка</th><th></th></tr></thead><tbody>${albumsHtml}</tbody></table>` : ''}
-        <h3>Файлы (${files.length})</h3>
-        ${files.length ? `<table class="file-table"><thead><tr><th>Файл</th><th>Размер</th><th>Ссылка</th><th></th></tr></thead><tbody>${filesHtml}</tbody></table>` : '<p>Нет загруженных файлов</p>'}
-      </div>`;
-
-    document.querySelectorAll('.btn-danger').forEach(btn => {
-      btn.onclick = async () => {
-        const id = btn.dataset.id;
-        const type = btn.dataset.type;
-        if (type === 'album') {
-          await api(`/api/album/${id}`, { method: 'DELETE' });
-        } else {
-          await api(`/api/file/${id}`, { method: 'DELETE' });
-        }
-        renderProfile();
-      };
-    });
-  } catch { /* ошибка уже показана */ }
-}
-
-homeBtn.onclick = () => currentUser ? renderUpload() : renderAuth();
-checkAuth();
