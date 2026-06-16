@@ -7,7 +7,6 @@ const fs = require('fs');
 const { v4: uuidv4 } = require('uuid');
 const { Low } = require('lowdb');
 const { JSONFile } = require('lowdb/node');
-const nodemailer = require('nodemailer');
 
 let db;
 async function initDB() {
@@ -16,31 +15,6 @@ async function initDB() {
   db.data ||= { users: [], files: [], albums: [], pendingCodes: [] };
   await db.write();
 }
-
-// ---- Настройки почты через твой Gmail ----
-const mailUser = process.env.MAIL_USER || '';
-const mailPass = process.env.MAIL_PASS || '';
-let transporter = null;
-if (mailUser && mailPass) {
-  transporter = nodemailer.createTransport({
-    service: 'gmail',
-    auth: { user: mailUser, pass: mailPass }
-  });
-}
-
-function sendEmail(email, code) {
-  if (!transporter) {
-    console.log(`[ТЕСТ] Код для ${email}: ${code}`);
-    return Promise.resolve();
-  }
-  return transporter.sendMail({
-    from: mailUser,
-    to: email,
-    subject: 'Код подтверждения IMGUT.DOKV',
-    text: `Твой код для входа: ${code}`
-  });
-}
-// -----------------------------------------
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -69,7 +43,7 @@ function requireAuth(req, res, next) {
   res.status(401).json({ error: 'Требуется авторизация' });
 }
 
-// Регистрация: запрос кода на email
+// Запрос кода на Email (без реальной отправки)
 app.post('/api/register/request-code', async (req, res) => {
   const { email, password } = req.body;
   if (!email || !password) return res.status(400).json({ error: 'Email и пароль обязательны' });
@@ -78,16 +52,12 @@ app.post('/api/register/request-code', async (req, res) => {
   db.data.pendingCodes = db.data.pendingCodes.filter(p => p.email !== email);
   db.data.pendingCodes.push({ email, phone: null, password, code, createdAt: Date.now() });
   await db.write();
-  try {
-    await sendEmail(email, code);
-    res.json({ success: true, message: 'Код отправлен на почту' });
-  } catch (err) {
-    console.error('Ошибка отправки:', err);
-    res.status(500).json({ error: 'Не удалось отправить письмо' });
-  }
+  // Код показывается на сайте (заглушка)
+  console.log(`[EMAIL] Код для ${email}: ${code}`);
+  res.json({ success: true, message: 'Код отправлен (для теста)', debugCode: code });
 });
 
-// Регистрация: запрос кода на телефон (заглушка)
+// Запрос кода на телефон (заглушка)
 app.post('/api/register/request-phone-code', async (req, res) => {
   const { phone, password } = req.body;
   if (!phone || !password) return res.status(400).json({ error: 'Телефон и пароль обязательны' });
@@ -100,7 +70,7 @@ app.post('/api/register/request-phone-code', async (req, res) => {
   res.json({ success: true, message: 'Код отправлен (для теста)', debugCode: code });
 });
 
-// Подтверждение email-кода
+// Подтверждение Email
 app.post('/api/register/verify-code', async (req, res) => {
   const { email, code } = req.body;
   const pending = db.data.pendingCodes.find(p => p.email === email && p.code === code);
@@ -115,7 +85,7 @@ app.post('/api/register/verify-code', async (req, res) => {
   res.json({ success: true });
 });
 
-// Подтверждение телефонного кода
+// Подтверждение телефона
 app.post('/api/register/verify-phone-code', async (req, res) => {
   const { phone, code } = req.body;
   const pending = db.data.pendingCodes.find(p => p.phone === phone && p.code === code);
@@ -130,6 +100,7 @@ app.post('/api/register/verify-phone-code', async (req, res) => {
   res.json({ success: true });
 });
 
+// Вход
 app.post('/api/login', async (req, res) => {
   const { contact, password } = req.body;
   if (!contact || !password) return res.status(400).json({ error: 'Контакт и пароль обязательны' });
@@ -151,7 +122,7 @@ app.get('/api/profile', requireAuth, async (req, res) => {
   res.json({ user: { id: user.id, email: user.email, phone: user.phone, storage_limit: user.storage_limit, used_storage: user.used_storage }, files, albums });
 });
 
-// Загрузка (создание альбомов)
+// Загрузка (альбомы)
 app.post('/api/upload', requireAuth, (req, res) => {
   upload.array('files', 10)(req, res, async (err) => {
     if (err) return res.status(400).json({ error: err.message });
